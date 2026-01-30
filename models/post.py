@@ -1,7 +1,8 @@
 from extenction import db
 from datetime import datetime
+from sqlalchemy import func
 
-class Post(db.model):
+class Post(db.Model):
     __tablename__ = 'posts'
     id = id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer,db.ForeignKey('users.id'),nullable=False)
@@ -26,3 +27,29 @@ class Post(db.model):
             db.session.commit()
             return "suppression reussite"
         return "pas ton poste pour supprimer"
+    
+    @staticmethod 
+    def get_votes(post_id):
+        from models.vote import Vote
+        
+        # On additionne toutes les "value" (1 et -1) pour ce post_id
+        score = db.session.query(func.sum(Vote.value)).filter_by(post_id=post_id).scalar()
+        
+        # Si le post n'a aucun vote, MySQL rend None, on retourne donc 0
+        return score if score is not None else 0
+    
+    @staticmethod
+    def get_posts():        
+        posts = Post.query.order_by(Post.publish_time.desc()).all()    
+        res = []
+        for post in posts:
+            res.append({
+                "id": post.id,
+                "title": post.title,
+                "content": post.content,
+                "user_id": post.user_id,
+                "publish_time": post.publish_time.strftime("%Y-%m-%d %H:%M:%S"),
+                "score": Post.get_votes(post.id) # On utilise ta méthode de score ici !
+            })
+            
+        return res
